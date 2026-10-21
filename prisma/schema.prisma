@@ -1,0 +1,67 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum DeviceStatus {
+  ONLINE
+  OFFLINE
+  NEVER_ONLINE
+  INACTIVE
+}
+
+model Device {
+  id          String        @id @default(cuid())
+  name        String
+  description String?       @db.Text
+  location    String
+  tokenHash   String        @unique
+  lastLocalIp String?
+  lastPublicIp String?
+  lastSeenAt  DateTime?
+  isActive    Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  heartbeats  Heartbeat[]
+  statusEvents StatusEvent[]
+
+  @@index([isActive, lastSeenAt])
+  @@index([location])
+}
+
+model Heartbeat {
+  id         String   @id @default(cuid())
+  deviceId   String
+  localIp    String?
+  publicIp   String?
+  receivedAt DateTime @default(now())
+  device     Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId, receivedAt])
+}
+
+model StatusEvent {
+  id         String       @id @default(cuid())
+  deviceId   String
+  status     DeviceStatus
+  occurredAt DateTime     @default(now())
+  reason     String?
+  device     Device       @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId, occurredAt])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String
+  action    String
+  entityId  String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
