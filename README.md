@@ -13,13 +13,18 @@ Prasyarat: Node.js 20.19+ dan database PostgreSQL yang dapat diakses dari komput
 
 `ADMIN_PASSWORD` dapat berisi kata sandi biasa untuk setup awal, atau bcrypt hash `$2b$...`. Jangan gunakan kata sandi biasa yang lemah pada production. Buat secret dengan `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`.
 
-## Pasang agent Windows
+## Pasang agent Windows (Background & Auto-Start)
 
-1. Buat perangkat dari menu **Perangkat** dan salin token yang ditampilkan. Token agent mentah hanya terlihat saat dibuat atau dirotasi.
-2. Salin `agent/windows/pc-monitor-agent.ps1` ke PC tujuan.
-3. Atur environment variables `PCMONITOR_SERVER_URL` (URL deployment, tanpa slash di akhir) dan `PCMONITOR_AGENT_TOKEN` (token perangkat).
-4. Jalankan PowerShell sebagai pengguna yang memiliki akses ke script: `powershell.exe -ExecutionPolicy Bypass -File .\pc-monitor-agent.ps1`.
-5. Untuk menjalankan saat startup, buat Scheduled Task Windows yang berjalan saat komputer dinyalakan. Lindungi file konfigurasi/token dan gunakan akun Windows dengan hak minimum.
+1. Buat perangkat dari menu **Perangkat** di dashboard dan salin token agent.
+2. Salin folder `agent/windows` ke PC yang ingin dipantau.
+3. Jalankan **`install-agent.bat`** (atau via PowerShell: `.\install-agent-task.ps1`).
+4. Masukkan URL server (misal `https://your-domain.vercel.app` atau `http://localhost:3000`) dan token perangkat saat diminta.
+5. Selesai! Agent otomatis didaftarkan sebagai Windows Scheduled Task:
+   - **Berjalan di background** (tanpa jendela terminal terbuka).
+   - **Otomatis berjalan saat komputer dinyalakan / login**.
+   - Melakukan monitoring berkala: **IPv4 Lokal, Penggunaan RAM %, Sisa Storage (Drive C:), dan Latency Internet**.
+   - Untuk mencopot/menghentikan agent, cukup jalankan **`uninstall-agent.bat`** (atau via PowerShell: `.\uninstall-agent-task.ps1`).
+   - Log aktivitas tersimpan otomatis di `agent.log`.
 
 Agent mengirim IPv4 lokal tiap 60 detik. IP publik dicatat dari header koneksi yang diterima server. Status berubah menjadi offline setelah 180 detik tanpa heartbeat. Reboot atau jaringan putus akan ditampilkan offline hingga heartbeat diterima kembali.
 

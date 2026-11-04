@@ -14,7 +14,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     const [device, heartbeats, events] = await Promise.all([
       db.device.findUnique({ where: { id }, select: { id: true, isActive: true, lastSeenAt: true } }),
       db.heartbeat.findMany({ where: { deviceId: id, receivedAt: { gte: since } }, orderBy: { receivedAt: "desc" }, take: 100,
-        select: { id: true, localIp: true, publicIp: true, receivedAt: true } }),
+        select: { id: true, localIp: true, publicIp: true, ramUsagePct: true, diskFreeGB: true, latencyMs: true, receivedAt: true } }),
       db.statusEvent.findMany({ where: { deviceId: id, occurredAt: { gte: since } }, orderBy: { occurredAt: "desc" }, take: 100,
         select: { id: true, status: true, reason: true, occurredAt: true } }),
     ]);

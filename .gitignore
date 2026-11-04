@@ -10,3 +10,7 @@ coverage/
 *.tsbuildinfo
 generated/
 .npm-cache/
+agent-config.json
+agent/windows/agent-config.json
+!agent-config.example.json
+

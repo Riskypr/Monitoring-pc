@@ -37,7 +37,10 @@ export async function GET(request: Request) {
     };
     const [rows, total, locations] = await Promise.all([
       db.device.findMany({ where, orderBy: [{ isActive: "desc" }, { name: "asc" }], skip: (page - 1) * pageSize, take: pageSize,
-        select: { id: true, name: true, location: true, lastLocalIp: true, lastPublicIp: true, lastSeenAt: true, isActive: true, createdAt: true } }),
+        select: {
+          id: true, name: true, location: true, lastLocalIp: true, lastPublicIp: true, lastSeenAt: true, isActive: true, createdAt: true,
+          ramUsagePct: true, ramUsedGB: true, ramTotalGB: true, diskUsagePct: true, diskFreeGB: true, diskTotalGB: true, latencyMs: true,
+        } }),
       db.device.count({ where }),
       db.device.findMany({ distinct: ["location"], select: { location: true }, orderBy: { location: "asc" } }),
     ]);

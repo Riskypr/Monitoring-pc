@@ -8,3 +8,48 @@
 @media(max-width:390px){.stats-grid{grid-template-columns:1fr 1fr}.stat-sub{display:none}.date-kicker{font-size:8px}.page-content{padding-left:10px;padding-right:10px}.detail-actions{gap:5px}.detail-actions button{font-size:8px!important;padding:7px!important}.inventory-title h2{font-size:11px}}
 
 .audit-panel{padding:18px 20px}.audit-list{margin-top:10px}.audit-row{display:flex;align-items:center;gap:11px;padding:13px 2px;border-bottom:1px solid #f0f2f5}.audit-row:last-child{border-bottom:0}.audit-icon{width:30px;height:30px;border-radius:8px;background:#f0f4fb;color:#6686c2;display:grid;place-items:center}.audit-copy{display:grid;gap:4px;flex:1}.audit-copy b{font-size:10px;color:#56657a}.audit-copy small,.audit-row time{font-size:9px;color:#929cab}.audit-row time{white-space:nowrap}@media(max-width:600px){.audit-row{align-items:flex-start}.audit-row time{font-size:8px}.audit-panel{padding:14px}}
+
+.metric-pill{display:inline-flex;align-items:center;gap:5px;font-size:9px;font-weight:600;padding:3px 7px;border-radius:6px;background:#f0f4f8;color:#50627a}
+.metric-pill.good{background:#e8f7f0;color:#18865d}
+.metric-pill.warn{background:#fff4e5;color:#bc7b2b}
+.metric-pill.bad{background:#ffebee;color:#c9454f}
+.metric-progress{width:100%;height:6px;border-radius:4px;background:#edf1f6;overflow:hidden;margin-top:6px}
+.metric-progress-fill{height:100%;border-radius:4px;transition:width .3s}
+.metric-progress-fill.green{background:#25b383}
+.metric-progress-fill.orange{background:#f0a33c}
+.metric-progress-fill.red{background:#e05860}
+.metrics-section{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;margin:2px 0}
+.metric-detail-card{padding:14px 16px;background:#fff;border:1px solid var(--line);border-radius:10px;display:flex;flex-direction:column;gap:9px}
+.metric-card-top{display:flex;align-items:center;justify-content:space-between;color:#7c8796;font-size:10px;font-weight:600}
+.metric-card-val{display:flex;align-items:baseline;justify-content:space-between}
+.metric-card-val strong{font:800 20px Manrope,sans-serif;letter-spacing:-.5px;color:#202e44}
+.metric-card-val span{font-size:10px;color:#8592a3}
+.metric-card-sub{font-size:9px;color:#929eaa;margin-top:-2px}
+.table-metric-cell{display:flex;flex-direction:column;gap:3px;font-size:9px;min-width:110px}
+.table-metric-row{display:flex;align-items:center;gap:6px;color:#617288}
+.table-metric-row small{color:#94a0af;min-width:32px}
+@media(max-width:980px){.metrics-section{grid-template-columns:1fr}}
+
+.help-grid{display:grid;gap:16px}
+.help-card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:20px 22px}
+.help-card-header{display:flex;align-items:center;gap:13px;margin-bottom:14px}
+.help-step-badge{width:32px;height:32px;border-radius:50%;background:#eaf1fe;color:#356fe5;display:grid;place-items:center;font:800 13px Manrope,sans-serif;flex-shrink:0}
+.help-step-badge.green{background:#e7f7f0;color:#1ea674}
+.help-step-badge.orange{background:#fff3e6;color:#e28e26}
+.help-step-badge.red{background:#ffebee;color:#d34a53}
+.help-card-title h3{margin:0;font:700 15px Manrope,sans-serif;color:#1c293d}
+.help-card-title p{margin:3px 0 0;font-size:11px;color:#85909f}
+.help-body{display:grid;gap:12px;font-size:12px;line-height:1.6;color:#546477}
+.help-body p{margin:0}
+.help-body ul{margin:4px 0 0;padding-left:18px;display:grid;gap:6px}
+.help-code-box{position:relative;background:#151d2a;border-radius:8px;padding:11px 14px;display:flex;align-items:center;justify-content:space-between;color:#e1e7f0;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:11px;overflow-x:auto}
+.help-code-box code{white-space:pre-wrap;word-break:break-all}
+.help-copy-btn{border:0;background:#243144;color:#9cb1d1;border-radius:6px;padding:5px 9px;font-size:10px;display:flex;align-items:center;gap:5px;cursor:pointer;flex-shrink:0;margin-left:12px;transition:.15s}
+.help-copy-btn:hover{background:#30425c;color:#fff}
+.help-alert{background:#f8fafd;border:1px solid #e1e9f4;border-radius:8px;padding:12px 14px;display:flex;gap:10px;align-items:flex-start;font-size:11px;color:#596d85}
+.help-alert svg{color:#3f76e0;flex-shrink:0;margin-top:2px}
+.quick-nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.quick-nav-pill{background:#fff;border:1px solid var(--line);border-radius:20px;padding:6px 12px;font-size:11px;font-weight:600;color:#55667b;display:inline-flex;align-items:center;gap:6px;transition:.15s}
+.quick-nav-pill:hover{background:#f3f7fd;border-color:#b9d0f5;color:#2b63cb}
+
+

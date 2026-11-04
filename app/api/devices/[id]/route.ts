@@ -18,11 +18,30 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   try {
     const device = await db.device.findUnique({ where: { id }, select: {
       id: true, name: true, location: true, description: true, lastLocalIp: true, lastPublicIp: true, lastSeenAt: true,
+      ramUsagePct: true, ramUsedGB: true, ramTotalGB: true, diskUsagePct: true, diskFreeGB: true, diskTotalGB: true, latencyMs: true,
       isActive: true, createdAt: true, updatedAt: true,
     } });
     if (!device) return NextResponse.json({ error: "Perangkat tidak ditemukan." }, { status: 404 });
     return NextResponse.json({ ...device, status: statusFor(device) });
   } catch { return NextResponse.json({ error: "Detail perangkat belum dapat dimuat." }, { status: 503 }); }
+}
+
+export async function DELETE(_request: Request, context: { params: Promise<{ id: string }> }) {
+  const denied = await requireApiAuth();
+  if (denied) return denied;
+  const { id } = await context.params;
+  try {
+    const device = await db.device.findUnique({ where: { id }, select: { id: true, name: true, location: true } });
+    if (!device) return NextResponse.json({ error: "Perangkat tidak ditemukan." }, { status: 404 });
+    await db.$transaction([
+      db.device.delete({ where: { id } }),
+      db.auditLog.create({ data: { actorId: process.env.ADMIN_EMAIL || "admin", action: "DEVICE_DELETED", entityId: id, metadata: { name: device.name, location: device.location } } }),
+    ]);
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error("Gagal menghapus perangkat:", error);
+    return NextResponse.json({ error: "Perangkat gagal dihapus." }, { status: 503 });
+  }
 }
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {

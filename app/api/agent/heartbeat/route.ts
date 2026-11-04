@@ -3,7 +3,16 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { hashAgentToken, isValidIp, publicIpFromRequest, statusFor } from "@/lib/monitoring";
 
-const schema = z.object({ localIp: z.string().max(45).optional().nullable() }).strict();
+const schema = z.object({
+  localIp: z.string().max(45).optional().nullable(),
+  ramUsagePct: z.number().min(0).max(100).optional().nullable(),
+  ramUsedGB: z.number().min(0).optional().nullable(),
+  ramTotalGB: z.number().min(0).optional().nullable(),
+  diskUsagePct: z.number().min(0).max(100).optional().nullable(),
+  diskFreeGB: z.number().min(0).optional().nullable(),
+  diskTotalGB: z.number().min(0).optional().nullable(),
+  latencyMs: z.number().int().min(0).max(60000).optional().nullable(),
+}).strict();
 export async function POST(request: Request) {
   const auth = request.headers.get("authorization") || "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
@@ -27,11 +36,39 @@ export async function POST(request: Request) {
     const beforeStatus = statusFor(device);
     const receivedAt = new Date();
     const publicIp = publicIpFromRequest(request);
+    const { localIp, ramUsagePct, ramUsedGB, ramTotalGB, diskUsagePct, diskFreeGB, diskTotalGB, latencyMs } = parsed.data;
     await db.$transaction([
-      db.heartbeat.create({ data: { deviceId: device.id, localIp: parsed.data.localIp || null, publicIp, receivedAt } }),
-      db.device.update({ where: { id: device.id }, data: { lastLocalIp: parsed.data.localIp || null, ...(publicIp ? { lastPublicIp: publicIp } : {}), lastSeenAt: receivedAt } }),
+      db.heartbeat.create({
+        data: {
+          deviceId: device.id,
+          localIp: localIp || null,
+          publicIp,
+          ramUsagePct: ramUsagePct ?? null,
+          diskFreeGB: diskFreeGB ?? null,
+          latencyMs: latencyMs ?? null,
+          receivedAt,
+        },
+      }),
+      db.device.update({
+        where: { id: device.id },
+        data: {
+          lastLocalIp: localIp || null,
+          ...(publicIp ? { lastPublicIp: publicIp } : {}),
+          ...(ramUsagePct !== undefined ? { ramUsagePct } : {}),
+          ...(ramUsedGB !== undefined ? { ramUsedGB } : {}),
+          ...(ramTotalGB !== undefined ? { ramTotalGB } : {}),
+          ...(diskUsagePct !== undefined ? { diskUsagePct } : {}),
+          ...(diskFreeGB !== undefined ? { diskFreeGB } : {}),
+          ...(diskTotalGB !== undefined ? { diskTotalGB } : {}),
+          ...(latencyMs !== undefined ? { latencyMs } : {}),
+          lastSeenAt: receivedAt,
+        },
+      }),
       ...(beforeStatus !== "ONLINE" ? [db.statusEvent.create({ data: { deviceId: device.id, status: "ONLINE", occurredAt: receivedAt, reason: "Heartbeat diterima" } })] : []),
     ]);
     return NextResponse.json({ ok: true, receivedAt: receivedAt.toISOString() });
-  } catch { return NextResponse.json({ error: "Heartbeat belum dapat disimpan." }, { status: 503 }); }
+  } catch (error) {
+    console.error("Gagal menyimpan heartbeat:", error);
+    return NextResponse.json({ error: "Heartbeat belum dapat disimpan." }, { status: 503 });
+  }
 }
