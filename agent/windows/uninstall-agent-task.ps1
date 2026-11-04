@@ -28,4 +28,13 @@ try {
   }
 } catch {}
 
+# 4. Hapus file konfigurasi token/server agar bersih untuk instalasi baru
+try {
+  $ConfigFile = Join-Path $PSScriptRoot "agent-config.json"
+  if (Test-Path $ConfigFile) {
+    Remove-Item -Path $ConfigFile -Force -ErrorAction SilentlyContinue
+    Write-Host "[BERHASIL] Konfigurasi token & server lama ($ConfigFile) telah dihapus." -ForegroundColor Green
+  }
+} catch {}
+
 Write-Host "PC Monitor Agent telah dinonaktifkan sepenuhnya." -ForegroundColor Cyan

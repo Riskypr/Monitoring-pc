@@ -19,22 +19,40 @@ if (-not (Test-Path $ScriptPath)) {
 }
 
 # 2. Cek konfigurasi yang ada atau minta input
-if (-not $ServerUrl -or -not $AgentToken) {
-  if (Test-Path $ConfigFile) {
-    try {
-      $existing = Get-Content $ConfigFile -Raw | ConvertFrom-Json
-      if (-not $ServerUrl) { $ServerUrl = $existing.ServerUrl }
-      if (-not $AgentToken) { $AgentToken = $existing.AgentToken }
-      if ($existing.IntervalSeconds) { $IntervalSeconds = [int]$existing.IntervalSeconds }
-    } catch {}
+$existingServerUrl = ""
+$existingToken = ""
+if (Test-Path $ConfigFile) {
+  try {
+    $existing = Get-Content $ConfigFile -Raw | ConvertFrom-Json
+    $existingServerUrl = $existing.ServerUrl
+    $existingToken = $existing.AgentToken
+    if ($existing.IntervalSeconds) { $IntervalSeconds = [int]$existing.IntervalSeconds }
+  } catch {}
+}
+
+# Jika dijalankan tanpa parameter CLI dan ada konfigurasi lama, tanyakan apakah ingin pakai ulang atau ganti baru
+if (-not $ServerUrl -and -not $AgentToken -and $existingServerUrl -and $existingToken) {
+  Write-Host "[INFO] Ditemukan konfigurasi sebelumnya:" -ForegroundColor Yellow
+  Write-Host "  - Server URL : $existingServerUrl" -ForegroundColor White
+  $tokenPreview = if ($existingToken.Length -gt 16) { $existingToken.Substring(0, 16) + '...' } else { $existingToken }
+  Write-Host "  - Token      : $tokenPreview" -ForegroundColor White
+  
+  $choice = Read-Host "Ingin menggunakan konfigurasi ini lagi? (Y = Pakai ulang / N = Masukkan URL & Token baru) [Y/N]"
+  if ($choice -match "^[Yy]") {
+    $ServerUrl = $existingServerUrl
+    $AgentToken = $existingToken
   }
 }
 
 if (-not $ServerUrl) {
-  $ServerUrl = Read-Host "Masukkan URL Server (contoh: http://localhost:3000 atau domain monitoring)"
+  $defaultText = if ($existingServerUrl) { " (tekan Enter untuk '$existingServerUrl')" } else { "" }
+  $inputUrl = Read-Host "Masukkan URL Server (contoh: http://localhost:3000 atau domain)$defaultText"
+  $ServerUrl = if ($inputUrl) { $inputUrl } else { $existingServerUrl }
 }
+
 if (-not $AgentToken) {
-  $AgentToken = Read-Host "Masukkan Token Agent PC"
+  $inputToken = Read-Host "Masukkan Token Agent PC yang baru"
+  $AgentToken = if ($inputToken) { $inputToken } else { $existingToken }
 }
 
 if ([string]::IsNullOrWhiteSpace($ServerUrl) -or [string]::IsNullOrWhiteSpace($AgentToken)) {
