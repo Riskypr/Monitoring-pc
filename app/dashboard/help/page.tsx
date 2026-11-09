@@ -42,6 +42,7 @@ export default function HelpPage() {
       </div>
 
       <div className="quick-nav">
+        <a href="/download" className="quick-nav-pill"><Download size={13} /> Halaman unduhan publik</a>
         <a href="#instal" className="quick-nav-pill"><Download size={13} /> Cara Instal</a>
         <a href="#run" className="quick-nav-pill"><Play size={13} /> Cara Menjalankan & Cek</a>
         <a href="#stop" className="quick-nav-pill"><Square size={13} /> Cara Menghentikan / Stop</a>

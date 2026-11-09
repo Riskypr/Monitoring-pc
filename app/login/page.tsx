@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Activity, ArrowRight, Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
+import { Activity, ArrowRight, Download, Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
@@ -39,6 +39,7 @@ export default function LoginPage() {
       {error && <div className="form-error" role="alert">{error}</div>}
       <button className="primary-button login-submit" type="submit" disabled={loading}>{loading ? "Memverifikasi..." : "Masuk ke dashboard"}<ArrowRight size={17} /></button>
       <div className="login-footnote"><span className="lock-mini"><LockKeyhole size={13} /></span>Sesi Anda dilindungi dengan enkripsi aman</div>
+      <a className="login-download-link" href="/download"><Download size={14} />Unduh agent untuk PC atau laptop</a>
     </form><div className="copyright">© {new Date().getFullYear()} PC Monitor <span>·</span> Monitoring perangkat yang lebih mudah</div></section>
   </main>;
 }
