@@ -35,9 +35,134 @@ model Device {
   updatedAt   DateTime      @updatedAt
   heartbeats  Heartbeat[]
   statusEvents StatusEvent[]
+  networkMeasurements NetworkMeasurement[]
+  connectivityChecks ConnectivityCheck[]
+  networkSettings NetworkSettings[]
+  agentCommands AgentCommand[]
+  networkIncidents NetworkIncident[]
 
   @@index([isActive, lastSeenAt])
   @@index([location])
+}
+
+enum MeasurementStatus {
+  success
+  failed
+}
+enum ConnectivityStatus {
+  connected
+  degraded
+  internet_down
+  unknown
+  api_unreachable
+  test_server_unreachable
+}
+enum AgentCommandStatus {
+  queued
+  running
+  completed
+  failed
+  expired
+}
+
+model NetworkMeasurement {
+  id String @id @default(cuid())
+  deviceId String
+  commandId String? @unique
+  requestId String? @unique
+  downloadMbps Float?
+  uploadMbps Float?
+  latencyMs Float?
+  jitterMs Float?
+  packetLossPercent Float?
+  serverId String?
+  serverName String?
+  serverRegion String?
+  publicIp String?
+  protocol String @default("TCP")
+  durationSeconds Int?
+  parallelStreams Int?
+  udpTargetMbps Float?
+  clientVersion String?
+  serverVersion String?
+  rawSummary String? @db.Text
+  status MeasurementStatus
+  errorMessage String? @db.Text
+  startedAt DateTime?
+  completedAt DateTime @default(now())
+  createdAt DateTime @default(now())
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  @@index([deviceId, completedAt])
+  @@index([status, completedAt])
+  @@index([serverId, completedAt])
+}
+
+model ConnectivityCheck {
+  id String @id @default(cuid())
+  deviceId String
+  gatewayReachable Boolean?
+  internetReachable Boolean
+  apiReachable Boolean
+  testServerReachable Boolean?
+  latencyMs Float?
+  packetLossPercent Float?
+  failedChecks Int @default(0)
+  status ConnectivityStatus
+  checkedAt DateTime @default(now())
+  createdAt DateTime @default(now())
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  @@index([deviceId, checkedAt])
+  @@index([status, checkedAt])
+}
+
+model NetworkSettings {
+  id String @id @default(cuid())
+  deviceId String? @unique
+  connectivityIntervalSeconds Int @default(60)
+  speedTestIntervalMinutes Int @default(30)
+  speedTestEnabled Boolean @default(true)
+  testDurationSeconds Int @default(10)
+  parallelStreams Int @default(1)
+  udpTestEnabled Boolean @default(false)
+  udpTargetMbps Float?
+  iperfServerId String?
+  slowDownloadThresholdMbps Float @default(5)
+  slowUploadThresholdMbps Float @default(1)
+  highLatencyThresholdMs Float @default(150)
+  highJitterThresholdMs Float @default(30)
+  highPacketLossThresholdPercent Float @default(3)
+  consecutiveFailuresBeforeDown Int @default(3)
+  updatedAt DateTime @updatedAt
+  device Device? @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+}
+
+model AgentCommand {
+  id String @id @default(cuid())
+  deviceId String
+  commandType String
+  payload Json
+  status AgentCommandStatus @default(queued)
+  requestedBy String?
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  completedAt DateTime?
+  result Json?
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  @@index([deviceId, status, createdAt])
+}
+
+model NetworkIncident {
+  id String @id @default(cuid())
+  deviceId String
+  category String
+  summary String @db.Text
+  startedAt DateTime @default(now())
+  recoveredAt DateTime?
+  durationSeconds Int?
+  createdAt DateTime @default(now())
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  @@index([deviceId, startedAt])
+  @@index([recoveredAt, startedAt])
 }
 
 model Heartbeat {

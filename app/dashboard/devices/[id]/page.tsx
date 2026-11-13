@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Check, Clock3, Copy, Cpu, Gauge, HardDrive, KeyRound, MapPin, Monitor, RefreshCw, RotateCw, Trash2, Wifi, WifiOff } from "lucide-react";
 import { StatusBadge } from "@/components/status-badge";
 import { DeviceEditModal } from "@/components/device-edit-modal";
+import { NetworkPanel } from "@/components/network-panel";
 
 type Device = {
   id: string;
@@ -169,6 +170,7 @@ export default function DeviceDetailPage() {
         <div className="metric-card-sub">Waktu respons koneksi internet (RTT ping)</div>
       </div>
     </div>
+    <NetworkPanel deviceId={id} />
     <section className="panel history-panel"><div className="panel-heading"><div><h2>Riwayat monitoring</h2><p>Heartbeat dan transisi status 7 hari terakhir</p></div><span className="history-count">{events.length + (history?.heartbeats.length || 0)} catatan</span></div>
       {events.length ? <div className="timeline">{events.map((event, index) => <div className="timeline-row" key={event.id}><div className={`timeline-marker ${event.status === "ONLINE" ? "marker-green" : event.status === "OFFLINE" ? "marker-orange" : "marker-grey"}`}>{event.status === "ONLINE" ? <Check size={12} /> : <WifiOff size={12} />}</div><div className="timeline-copy"><div><b>{event.status === "ONLINE" ? "Perangkat online" : event.status === "OFFLINE" ? "Perangkat offline" : event.status === "INACTIVE" ? "Perangkat dinonaktifkan" : "Perangkat belum online"}</b><small>{event.reason || "Perubahan status terdeteksi"}</small></div><time>{time(event.occurredAt)}</time></div>{index < events.length - 1 && <span className="timeline-line" />}</div>)}</div> : <div className="empty-history"><Clock3 size={20} /><b>Belum ada perubahan status</b><span>Event akan muncul ketika perangkat mulai mengirim heartbeat.</span></div>}
       <div className="heartbeat-list"><div className="heartbeat-list-head"><b>Heartbeat terbaru</b><span>Terbaru lebih dulu · maksimal 100 catatan</span></div>{history?.heartbeats.slice(0, 8).map((item) => <div className="heartbeat-row" key={item.id}><span className="online-dot" /><span>Heartbeat diterima <small>{item.localIp || "IP lokal tidak tersedia"}</small>{item.ramUsagePct !== null && item.ramUsagePct !== undefined && <small style={{ color: "#456184", fontWeight: 600 }}> · RAM {item.ramUsagePct}%</small>}{item.diskFreeGB !== null && item.diskFreeGB !== undefined && <small style={{ color: "#456184", fontWeight: 600 }}> · Sisa Disk {item.diskFreeGB} GB</small>}{item.latencyMs !== null && item.latencyMs !== undefined && <small style={{ color: "#456184", fontWeight: 600 }}> · Ping {item.latencyMs}ms</small>}</span><time>{time(item.receivedAt)}</time></div>)}{history && history.heartbeats.length === 0 && <div className="heartbeat-empty">Belum ada heartbeat yang diterima.</div>}</div>
