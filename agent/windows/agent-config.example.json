@@ -1,7 +1,6 @@
 {
   "ServerUrl": "http://localhost:3000",
   "AgentToken": "paste-your-token-here",
-  "IntervalSeconds": 60,
-  "Iperf2Path": "C:\\Program Files\\iPerf2\\iperf.exe"
+  "IntervalSeconds": 60
 }
 

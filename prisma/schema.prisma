@@ -80,6 +80,7 @@ model NetworkMeasurement {
   serverRegion String?
   publicIp String?
   protocol String @default("TCP")
+  ooklaVersion String?
   durationSeconds Int?
   parallelStreams Int?
   udpTargetMbps Float?

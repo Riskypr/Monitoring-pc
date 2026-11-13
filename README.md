@@ -28,11 +28,11 @@ Prasyarat: Node.js 20.19+ dan database PostgreSQL yang dapat diakses dari komput
 
 Agent mengirim IPv4 lokal tiap 60 detik. IP publik dicatat dari header koneksi yang diterima server. Status berubah menjadi offline setelah 180 detik tanpa heartbeat. Reboot atau jaringan putus akan ditampilkan offline hingga heartbeat diterima kembali.
 
-### Pemantauan internet dan iPerf2
+### Pemantauan internet dan Ookla
 
-Agent Windows juga menguji dua endpoint HTTPS independen, API PC Monitor, dan server iPerf2 setiap siklus heartbeat, lalu mengirim hasil konektivitas secara terpisah. Tes iPerf2 TCP otomatis berjalan tiap 30 menit dengan jeda acak; admin dapat mengubah interval (minimum 15 menit), durasi, jumlah stream, threshold, dan menonaktifkan tes otomatis dari detail perangkat. Tombol **Test Internet Now** mengantrikan command yang diambil agent melalui polling outbound. Agent harus berjalan dan dapat menjangkau API agar tes manual diterima.
+Agent Windows juga menguji dua endpoint HTTPS independen dan API PC Monitor setiap siklus heartbeat, lalu mengirim hasil konektivitas secara terpisah. Speed test otomatis berjalan tiap 30 menit dengan jeda acak; admin dapat mengubah interval (minimum 15 menit), threshold, dan menonaktifkan speed test otomatis dari detail perangkat. Tombol **Test Internet Now** mengantrikan command yang diambil agent melalui polling outbound. Agent harus sedang berjalan dan dapat menjangkau API agar tes manual diterima.
 
-Konfigurasikan `IPERF2_SERVER_HOST` dan `IPERF2_SERVER_PORT` pada environment aplikasi. Jalankan iPerf2 server pada VPS/Linux yang memiliki kapasitas memadai; Vercel tidak menjalankan server pengujian. Pasang binary **iPerf2** (bukan iPerf3) pada tiap PC, lalu isi `Iperf2Path` di `agent-config.json` atau tambahkan `iperf.exe` ke `PATH`. Installer membuat file konfigurasi saat pertama dijalankan; ubah `Iperf2Path` setelah instalasi bila binary tidak ada di `PATH`. Verifikasi versi, checksum, lisensi, format output, dan urutan arah `-r` pada binary Windows yang dipilih sebelum rollout. Tes TCP mengukur throughput ke VPS; hasil tidak mewakili seluruh internet. UDP nonaktif secara default, maka latency, jitter, dan packet loss tersimpan kosong untuk tes TCP.
+Ookla Speedtest CLI tidak disertakan dalam paket agent. Pasang CLI resmi Ookla pada PC target dan pastikan `speedtest.exe` tersedia di `PATH`; agent menerima lisensi dan ketentuan CLI pada eksekusi pertama. Sebelum memasang atau mendistribusikan CLI, admin harus meninjau [EULA](https://www.speedtest.net/about/eula), [Terms](https://www.speedtest.net/about/terms), dan [Privacy Policy](https://www.speedtest.net/about/privacy) Ookla untuk konteks penggunaan organisasi. Agent mengonversi bandwidth JSON Ookla dari byte/detik menjadi Mbps desimal.
 
 Setelah perubahan schema, jalankan migrasi pada database target dengan `npx prisma migrate deploy`, lalu deploy aplikasi dan perbarui agent Windows. Job retensi harian menghapus connectivity check setelah 14 hari, speed test dan heartbeat setelah 90 hari, serta command terminal setelah 30 hari. Ringkasan harian 12 bulan belum dibuat.
 
@@ -40,7 +40,7 @@ Setelah perubahan schema, jalankan migrasi pada database target dengan `npx pris
 
 1. Push repository ini ke GitHub, kemudian impor di Vercel.
 2. Buat database Neon dan isi `DATABASE_URL` pooled PostgreSQL di Vercel Environment Variables. Isi `DIRECT_URL` dengan URL non-pooled untuk migrasi Prisma.
-3. Atur `AUTH_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `APP_URL`, `CRON_SECRET`, serta `IPERF2_SERVER_HOST` dan `IPERF2_SERVER_PORT` di environment Development/Preview/Production sesuai lingkungan. Jangan menambahkan secret dengan awalan `NEXT_PUBLIC_`.
+3. Atur `AUTH_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `APP_URL`, dan `CRON_SECRET` di environment Development/Preview/Production sesuai lingkungan. Jangan menambahkan secret dengan awalan `NEXT_PUBLIC_`.
 4. Jalankan migrasi terkontrol terhadap database target: `npx prisma migrate deploy`.
 5. Deploy aplikasi. Atur `PCMONITOR_SERVER_URL` pada PC agent ke URL production HTTPS.
 
@@ -53,7 +53,7 @@ Untuk deployment production, gunakan password administrator yang kuat atau bcryp
 - Registrasi, pengeditan dasar, aktivasi/nonaktif, dan rotasi token per perangkat.
 - Hash token di database, endpoint heartbeat tervalidasi, pencatatan IP dan riwayat.
 - Deteksi status dengan interval 60 detik dan ambang offline 180 detik.
-- Monitoring konektivitas dan iPerf2 per perangkat, command tes manual, threshold dan ringkasan kualitas jaringan.
+- Monitoring konektivitas dan Ookla per perangkat, command speed test manual, threshold dan ringkasan kualitas jaringan.
 - Audit log dan pemeriksaan kesehatan aplikasi/database di `/api/health`.
 
 Ketersediaan dihitung dari jumlah perangkat online dibanding seluruh perangkat aktif. Heartbeat berumur lebih dari 90 hari dihapus oleh Vercel Cron harian. Pastikan `CRON_SECRET` tersedia untuk mengizinkan tugas retensi. Agent Windows PowerShell disertakan sebagai implementasi awal.

@@ -11,9 +11,8 @@ export async function GET(request: Request) {
     await db.agentCommand.updateMany({ where: { deviceId: device.id, status: { in: ["queued", "running"] }, expiresAt: { lt: now } }, data: { status: "expired" } });
     const command = await db.agentCommand.findFirst({ where: { deviceId: device.id, status: "queued", expiresAt: { gt: now } }, orderBy: { createdAt: "asc" } });
     const settings = await db.networkSettings.findFirst({ where: { deviceId: device.id } });
-    const iperfServer = process.env.IPERF2_SERVER_HOST ? { id: process.env.IPERF2_SERVER_ID || "default", name: process.env.IPERF2_SERVER_NAME || "iPerf2 server", host: process.env.IPERF2_SERVER_HOST, port: Number(process.env.IPERF2_SERVER_PORT || 5001), region: process.env.IPERF2_SERVER_REGION || null } : null;
-    if (!command) return NextResponse.json({ command: null, settings, iperfServer });
+    if (!command) return NextResponse.json({ command: null, settings });
     const claimed = await db.agentCommand.updateMany({ where: { id: command.id, status: "queued" }, data: { status: "running" } });
-    return NextResponse.json({ command: claimed.count ? { id: command.id, commandType: command.commandType, payload: command.payload, expiresAt: command.expiresAt } : null, settings, iperfServer });
+    return NextResponse.json({ command: claimed.count ? { id: command.id, commandType: command.commandType, payload: command.payload, expiresAt: command.expiresAt } : null, settings });
   } catch { return NextResponse.json({ error: "Command belum dapat diambil." }, { status: 503 }); }
 }

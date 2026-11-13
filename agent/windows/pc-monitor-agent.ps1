@@ -7,8 +7,6 @@ param(
 
 $ErrorActionPreference = 'SilentlyContinue'
 $cfg = @{}
-$iperfServer = $null
-$networkSettings = $null
 $pending = $null
 
 # 1. Prioritas konfigurasi: Argumen CLI > agent-config.json > Environment Variable
@@ -34,7 +32,7 @@ if ([string]::IsNullOrWhiteSpace($ServerUrl) -or [string]::IsNullOrWhiteSpace($A
 $ServerUrl = $ServerUrl.TrimEnd('/')
 $HeartbeatUrl = "$ServerUrl/api/agent/heartbeat"
 $ConnectivityUrl = "$ServerUrl/api/agent/network/connectivity"
-$MeasurementUrl = "$ServerUrl/api/agent/network/measurement"
+$SpeedtestUrl = "$ServerUrl/api/agent/network/speedtest"
 $CommandsUrl = "$ServerUrl/api/agent/commands"
 if (-not $LogFile) {
   $LogFile = Join-Path $PSScriptRoot 'agent.log'
@@ -151,7 +149,7 @@ function Test-TcpEndpoint([string]$HostName, [int]$Port = 443) {
 }
 
 function Send-NetworkResult($result) {
-  try { Invoke-RestMethod -Method Post -Uri $MeasurementUrl -Headers @{ Authorization = "Bearer $AgentToken" } -ContentType 'application/json' -Body ($result | ConvertTo-Json -Depth 8 -Compress) -TimeoutSec 20 -ErrorAction Stop | Out-Null }
+  try { Invoke-RestMethod -Method Post -Uri $SpeedtestUrl -Headers @{ Authorization = "Bearer $AgentToken" } -ContentType 'application/json' -Body ($result | ConvertTo-Json -Depth 8 -Compress) -TimeoutSec 20 -ErrorAction Stop | Out-Null }
   catch {
     Write-AgentLog "Hasil speed test gagal dikirim; disimpan di antrean lokal: $($_.Exception.Message)" 'WARN'
     try {
@@ -168,7 +166,7 @@ function Flush-NetworkQueue {
   try {
     $queue = @(Get-Content $NetworkQueueFile -Raw | ConvertFrom-Json -ErrorAction Stop)
     while ($queue.Count -gt 0) {
-      try { Invoke-RestMethod -Method Post -Uri $MeasurementUrl -Headers @{ Authorization = "Bearer $AgentToken" } -ContentType 'application/json' -Body ($queue[0] | ConvertTo-Json -Depth 8 -Compress) -TimeoutSec 15 -ErrorAction Stop | Out-Null; $queue = @($queue | Select-Object -Skip 1) }
+      try { Invoke-RestMethod -Method Post -Uri $SpeedtestUrl -Headers @{ Authorization = "Bearer $AgentToken" } -ContentType 'application/json' -Body ($queue[0] | ConvertTo-Json -Depth 8 -Compress) -TimeoutSec 15 -ErrorAction Stop | Out-Null; $queue = @($queue | Select-Object -Skip 1) }
       catch { break }
     }
     if ($queue.Count) { $queue | ConvertTo-Json -Depth 8 | Set-Content -Path $NetworkQueueFile -Encoding UTF8 }
@@ -176,59 +174,34 @@ function Flush-NetworkQueue {
   } catch { Write-AgentLog 'Antrean hasil jaringan lokal tidak dapat dibaca.' 'WARN' }
 }
 
-function Convert-IperfRateToMbps([string]$Value, [string]$Unit) {
-  $number = [double]::Parse($Value, [Globalization.CultureInfo]::InvariantCulture)
-  switch -Regex ($Unit.ToLowerInvariant()) {
-    '^g(bits|bytes)/sec$' { if ($Unit -match 'Bytes') { return $number * 8000 }; return $number * 1000 }
-    '^m(bits|bytes)/sec$' { if ($Unit -match 'Bytes') { return $number * 8 }; return $number }
-    '^k(bits|bytes)/sec$' { if ($Unit -match 'Bytes') { return $number * 0.008 }; return $number * 0.001 }
-    '^bits/sec$' { return $number / 1000000 }
-    '^bytes/sec$' { return $number * 8 / 1000000 }
-    default { throw "Unit iPerf tidak dikenal: $Unit" }
-  }
-}
-
-function Invoke-Iperf2Test([string]$CommandId = '', $TestConfig = $null) {
+function Invoke-OoklaSpeedtest([string]$CommandId = '') {
   $started = [DateTime]::UtcNow
-  $base = @{ status = 'failed'; errorMessage = $null; startedAt = $started.ToString('o'); completedAt = $null; requestId = [guid]::NewGuid().ToString(); protocol = 'TCP'; latencyMs = $null; jitterMs = $null; packetLossPercent = $null }
+  $base = @{ status = 'failed'; errorMessage = $null; startedAt = $started.ToString('o'); completedAt = $null; requestId = [guid]::NewGuid().ToString() }
   if ($CommandId) { $base.commandId = $CommandId }
   try {
-    $hostName = if ($TestConfig.serverHost) { [string]$TestConfig.serverHost } elseif ($iperfServer.host) { [string]$iperfServer.host } else { $env:PCMONITOR_IPERF2_SERVER }
-    $port = if ($TestConfig.serverPort) { [int]$TestConfig.serverPort } elseif ($iperfServer.port) { [int]$iperfServer.port } else { 5001 }
-    if ([string]::IsNullOrWhiteSpace($hostName) -or $port -lt 1 -or $port -gt 65535) { throw 'Host iPerf2 belum dikonfigurasi.' }
-    $cliPath = if ($cfg.Iperf2Path) { [string]$cfg.Iperf2Path } elseif ($env:PCMONITOR_IPERF2_PATH) { $env:PCMONITOR_IPERF2_PATH } else { $null }
-    $cli = if ($cliPath -and (Test-Path $cliPath)) { Get-Item $cliPath } else { Get-Command iperf.exe -ErrorAction SilentlyContinue }
-    if (-not $cli) { $cli = Get-Command iperf -ErrorAction SilentlyContinue }
-    if (-not $cli) { throw 'Binary client iPerf2 tidak tersedia. Atur Iperf2Path atau PATH.' }
-    $iperfExe = if ($cliPath -and (Test-Path $cliPath)) { $cliPath } else { $cli.Source }
-    $duration = if ($TestConfig.durationSeconds) { [math]::Min(30, [math]::Max(5, [int]$TestConfig.durationSeconds)) } elseif ($networkSettings.testDurationSeconds) { [int]$networkSettings.testDurationSeconds } else { 10 }
-    $streams = if ($TestConfig.parallelStreams) { [math]::Min(8, [math]::Max(1, [int]$TestConfig.parallelStreams)) } elseif ($networkSettings.parallelStreams) { [int]$networkSettings.parallelStreams } else { 1 }
-    $base.serverId = if ($TestConfig.serverId) { [string]$TestConfig.serverId } elseif ($iperfServer.id) { [string]$iperfServer.id } else { 'default' }
-    $base.serverName = if ($TestConfig.serverName) { [string]$TestConfig.serverName } elseif ($iperfServer.name) { [string]$iperfServer.name } else { $hostName }
-    $base.serverRegion = if ($TestConfig.serverRegion) { [string]$TestConfig.serverRegion } elseif ($iperfServer.region) { [string]$iperfServer.region } else { $null }
-    $base.durationSeconds = $duration; $base.parallelStreams = $streams
-    $versionOutput = & $iperfExe -v 2>&1 | Out-String
-    $base.clientVersion = (($versionOutput.Trim() -split "`r?`n" | Select-Object -First 1) -replace '^.*?(iperf[^\r\n]*)$', '$1')
+    $cli = Get-Command speedtest.exe -ErrorAction SilentlyContinue
+    if (-not $cli) { $cli = Get-Command speedtest -ErrorAction SilentlyContinue }
+    if (-not $cli) { throw 'Ookla Speedtest CLI tidak terpasang atau tidak ada di PATH.' }
     $stdoutFile = [System.IO.Path]::GetTempFileName(); $stderrFile = [System.IO.Path]::GetTempFileName()
-    $args = @('-c', $hostName, '-p', "$port", '-t', "$duration", '-P', "$streams", '-r')
-    $process = Start-Process -FilePath $iperfExe -ArgumentList $args -PassThru -NoNewWindow -RedirectStandardOutput $stdoutFile -RedirectStandardError $stderrFile
-    if (-not $process.WaitForExit(($duration * 2000) + 30000)) { $process.Kill(); throw 'iPerf2 timeout.' }
+    $process = Start-Process -FilePath $cli.Source -ArgumentList @('--accept-license', '--accept-gdpr', '-f', 'json') -PassThru -NoNewWindow -RedirectStandardOutput $stdoutFile -RedirectStandardError $stderrFile
+    if (-not $process.WaitForExit(180000)) { $process.Kill(); throw 'Speed test timeout setelah 180 detik.' }
     $raw = Get-Content $stdoutFile -Raw
     $cliError = Get-Content $stderrFile -Raw
     Remove-Item $stdoutFile, $stderrFile -Force -ErrorAction SilentlyContinue
-    $output = ($raw + "`n" + $cliError).Trim()
-    if ($process.ExitCode -ne 0) { throw (($output -split "`r?`n" | Select-Object -Last 1)) }
-    $base.rawSummary = $output.Substring(0, [math]::Min(12000, $output.Length))
-    $rows = @([regex]::Matches($output, '(?im)^\s*(?:\[\s*SUM\s*\]|\[\s*\d+\s*\])?\s*(?<start>\d+(?:\.\d+)?)-(?<end>\d+(?:\.\d+)?)\s+sec\s+\S+\s+(?:[KMGT]?Bytes\s+)?(?<amount>\d+(?:\.\d+)?)\s*(?<unit>Gbits/sec|Mbits/sec|Kbits/sec|bits/sec|GBytes/sec|MBytes/sec|KBytes/sec|Bytes/sec)\s*$') | ForEach-Object { @{ mbps = Convert-IperfRateToMbps $_.Groups['amount'].Value $_.Groups['unit'].Value; elapsed = [double]$_.Groups['end'].Value - [double]$_.Groups['start'].Value; row = $_.Value } })
-    $finalRows = @($rows | Where-Object { $_.elapsed -ge ($duration - 1) })
-    $sumRows = @($finalRows | Where-Object { $_.row -match '^\s*\[\s*SUM\s*\]' })
-    if ($sumRows.Count -ge 2) { $base.uploadMbps = [math]::Round($sumRows[0].mbps, 3); $base.downloadMbps = [math]::Round($sumRows[$sumRows.Count - 1].mbps, 3) }
-    elseif ($streams -eq 1 -and $finalRows.Count -ge 2) { $base.uploadMbps = [math]::Round($finalRows[0].mbps, 3); $base.downloadMbps = [math]::Round($finalRows[$finalRows.Count - 1].mbps, 3) }
-    elseif ($streams -gt 1 -and $finalRows.Count -ge (2 * $streams)) { $base.uploadMbps = [math]::Round((($finalRows | Select-Object -First $streams | Measure-Object -Property mbps -Sum).Sum), 3); $base.downloadMbps = [math]::Round((($finalRows | Select-Object -Last $streams | Measure-Object -Property mbps -Sum).Sum), 3) }
-    else { throw 'Ringkasan dua arah iPerf2 tidak dapat dipetakan dengan aman; verifikasi output build dan dukungan ringkasan SUM.' }
-    # iPerf2 -r runs client-to-server first, then server-to-client. Validate this ordering on the pinned Windows build before rollout.
-    $base.status = 'success'
-  } catch { $base.errorMessage = $_.Exception.Message; Write-AgentLog "iPerf2 test gagal: $($base.errorMessage)" 'WARN' }
+    if ($process.ExitCode -ne 0) { throw (($cliError.Trim() -split "`r?`n" | Select-Object -First 1)) }
+    $json = $raw | ConvertFrom-Json -ErrorAction Stop
+    $download = if ($null -ne $json.download.bandwidth) { [math]::Round(([double]$json.download.bandwidth * 8 / 1000000), 3) } else { $null }
+    $upload = if ($null -ne $json.upload.bandwidth) { [math]::Round(([double]$json.upload.bandwidth * 8 / 1000000), 3) } else { $null }
+    if ($null -eq $download -or $null -eq $upload) { throw 'Field bandwidth tidak ditemukan pada output Ookla.' }
+    $base.status = 'success'; $base.downloadMbps = $download; $base.uploadMbps = $upload
+    $base.latencyMs = if ($null -ne $json.ping.latency) { [double]$json.ping.latency } else { $null }
+    $base.jitterMs = if ($null -ne $json.ping.jitter) { [double]$json.ping.jitter } else { $null }
+    $base.packetLossPercent = if ($null -ne $json.packetLoss) { [double]$json.packetLoss } else { $null }
+    $base.serverId = if ($json.server.id) { [string]$json.server.id } else { $null }
+    $base.serverName = if ($json.server.name) { [string]$json.server.name } else { $null }
+    $base.publicIp = if ($json.interface.externalIp) { [string]$json.interface.externalIp } else { $null }
+    $base.ooklaVersion = [string]$json.version
+  } catch { $base.errorMessage = $_.Exception.Message; Write-AgentLog "Speed test gagal: $($base.errorMessage)" 'WARN' }
   $base.completedAt = [DateTime]::UtcNow.ToString('o')
   Send-NetworkResult $base
   return $base
@@ -278,28 +251,24 @@ while ($true) {
   $checks = @((Test-TcpEndpoint 'www.microsoft.com'), (Test-TcpEndpoint 'www.cloudflare.com'))
   $internetReachable = [bool](($checks | Where-Object { $_.ok }).Count -gt 0)
   $latencies = @($checks | Where-Object { $_.ok } | ForEach-Object { $_.latency })
-  $checkPayload = @{ gatewayReachable = $null; internetReachable = $internetReachable; apiReachable = $false; testServerReachable = $null; latencyMs = if ($latencies.Count) { [math]::Round(($latencies | Measure-Object -Average).Average, 1) } else { $null }; packetLossPercent = [math]::Round((2 - $latencies.Count) / 2 * 100, 1); checkedAt = [DateTime]::UtcNow.ToString('o') }
+  $checkPayload = @{ gatewayReachable = $null; internetReachable = $internetReachable; apiReachable = $false; latencyMs = if ($latencies.Count) { [math]::Round(($latencies | Measure-Object -Average).Average, 1) } else { $null }; packetLossPercent = [math]::Round((2 - $latencies.Count) / 2 * 100, 1); checkedAt = [DateTime]::UtcNow.ToString('o') }
   try {
     $apiProbe = Invoke-WebRequest -Uri "$ServerUrl/api/health" -Method Get -TimeoutSec 5 -UseBasicParsing -ErrorAction Stop
     $checkPayload.apiReachable = ($apiProbe.StatusCode -ge 200 -and $apiProbe.StatusCode -lt 500)
   } catch {}
-  if ($pending.iperfServer) { $iperfServer = $pending.iperfServer }
-  if ($iperfServer -and $internetReachable) { $testPort = if ($iperfServer.port) { [int]$iperfServer.port } else { 5001 }; $serverProbe = Test-TcpEndpoint ([string]$iperfServer.host) $testPort; $checkPayload.testServerReachable = [bool]$serverProbe.ok }
   try { Invoke-RestMethod -Method Post -Uri $ConnectivityUrl -Headers @{ Authorization = "Bearer $AgentToken" } -ContentType 'application/json' -Body ($checkPayload | ConvertTo-Json -Compress) -TimeoutSec 15 -ErrorAction Stop | Out-Null }
   catch { Write-AgentLog "Connectivity check gagal dikirim." 'WARN' }
 
   try {
     $pending = Invoke-RestMethod -Method Get -Uri $CommandsUrl -Headers @{ Authorization = "Bearer $AgentToken" } -TimeoutSec 10 -ErrorAction Stop
-    if ($pending.iperfServer) { $iperfServer = $pending.iperfServer }
     if ($pending.settings) {
-      $networkSettings = $pending.settings
       $speedTestIntervalMinutes = [math]::Max(15, [int]$pending.settings.speedTestIntervalMinutes)
       $autoSpeedtestEnabled = [bool]$pending.settings.speedTestEnabled
     }
     if ($pending.command) {
       $command = $pending.command
       if ([DateTime]::Parse($command.expiresAt).ToUniversalTime() -gt [DateTime]::UtcNow) {
-        if ($command.commandType -in @('RUN_SPEEDTEST', 'RUN_IPERF_TEST')) { Invoke-Iperf2Test ([string]$command.id) $command.payload | Out-Null }
+        if ($command.commandType -eq 'RUN_SPEEDTEST') { Invoke-OoklaSpeedtest ([string]$command.id) | Out-Null }
         elseif ($command.commandType -eq 'UPDATE_SETTINGS') {
           if ($command.payload.speedTestIntervalMinutes) { $speedTestIntervalMinutes = [math]::Max(15, [int]$command.payload.speedTestIntervalMinutes) }
           if ($null -ne $command.payload.speedTestEnabled) { $autoSpeedtestEnabled = [bool]$command.payload.speedTestEnabled }
@@ -310,7 +279,7 @@ while ($true) {
     }
   } catch {}
   if ($autoSpeedtestEnabled -and [DateTime]::UtcNow -ge $nextAutomaticTest) {
-    Invoke-Iperf2Test '' $null
+    Invoke-OoklaSpeedtest
     $nextAutomaticTest = [DateTime]::UtcNow.AddMinutes($speedTestIntervalMinutes + (Get-Random -Minimum 0 -Maximum 181) / 60.0)
   }
 

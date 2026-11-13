@@ -21,13 +21,11 @@ if (-not (Test-Path $ScriptPath)) {
 # 2. Cek konfigurasi yang ada atau minta input
 $existingServerUrl = ""
 $existingToken = ""
-$existingIperf2Path = ""
 if (Test-Path $ConfigFile) {
   try {
     $existing = Get-Content $ConfigFile -Raw | ConvertFrom-Json
     $existingServerUrl = $existing.ServerUrl
     $existingToken = $existing.AgentToken
-    $existingIperf2Path = $existing.Iperf2Path
     if ($existing.IntervalSeconds) { $IntervalSeconds = [int]$existing.IntervalSeconds }
   } catch {}
 }
@@ -68,7 +66,6 @@ $configObj = @{
   AgentToken      = $AgentToken.Trim()
   IntervalSeconds = $IntervalSeconds
 }
-if ($existingIperf2Path) { $configObj.Iperf2Path = $existingIperf2Path }
 $configObj | ConvertTo-Json | Set-Content -Path $ConfigFile -Force -Encoding UTF8
 Write-Host "[OK] Konfigurasi tersimpan di: $ConfigFile" -ForegroundColor Green
 
