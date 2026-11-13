@@ -119,11 +119,23 @@ function Get-DiskMetrics {
   return @{ diskUsagePct = $null; diskFreeGB = $null; diskTotalGB = $null }
 }
 
+function Get-NetworkLatencyMs {
+  try {
+    $p = New-Object System.Net.NetworkInformation.Ping
+    $r = $p.Send('8.8.8.8', 1500)
+    if ($r.Status -eq [System.Net.NetworkInformation.IPStatus]::Success) {
+      return [int]$r.RoundtripTime
+    }
+  } catch {}
+  return $null
+}
+
 Write-AgentLog "PC Monitor Agent dimulai. Server: $HeartbeatUrl | Interval: ${IntervalSeconds}s"
 
 while ($true) {
   $mem = Get-MemoryMetrics
   $disk = Get-DiskMetrics
+  $latency = Get-NetworkLatencyMs
   $localIp = Get-LocalIPv4
 
   $payloadData = @{
@@ -134,6 +146,7 @@ while ($true) {
     diskUsagePct = $disk.diskUsagePct
     diskFreeGB   = $disk.diskFreeGB
     diskTotalGB  = $disk.diskTotalGB
+    latencyMs    = $latency
   }
 
   $payload = $payloadData | ConvertTo-Json -Compress
@@ -144,7 +157,7 @@ while ($true) {
       -ContentType 'application/json; charset=utf-8' `
       -Body $payload -TimeoutSec 15 -ErrorAction Stop
 
-    $metricsSummary = "RAM: $($mem.ramUsagePct)% | Disk Free: $($disk.diskFreeGB)GB"
+    $metricsSummary = "RAM: $($mem.ramUsagePct)% | Disk Free: $($disk.diskFreeGB)GB | Ping: $($latency)ms"
     Write-AgentLog "Heartbeat terkirim ($metricsSummary)" 'INFO'
   } catch {
     $statusCode = if ($_.Exception.Response) { [int]$_.Exception.Response.StatusCode } else { 'NetworkError' }
