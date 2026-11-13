@@ -3,10 +3,9 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Check, Clock3, Copy, Cpu, Gauge, HardDrive, KeyRound, MapPin, Monitor, RefreshCw, RotateCw, Trash2, Wifi, WifiOff } from "lucide-react";
+import { ArrowLeft, Check, Clock3, Copy, Cpu, HardDrive, KeyRound, MapPin, Monitor, RefreshCw, RotateCw, Trash2, Wifi, WifiOff } from "lucide-react";
 import { StatusBadge } from "@/components/status-badge";
 import { DeviceEditModal } from "@/components/device-edit-modal";
-import { NetworkPanel } from "@/components/network-panel";
 
 type Device = {
   id: string;
@@ -21,7 +20,6 @@ type Device = {
   diskUsagePct: number | null;
   diskFreeGB: number | null;
   diskTotalGB: number | null;
-  latencyMs: number | null;
   lastSeenAt: string | null;
   isActive: boolean;
   createdAt: string;
@@ -34,8 +32,7 @@ type History = {
     publicIp: string | null;
     ramUsagePct: number | null;
     diskFreeGB: number | null;
-    latencyMs: number | null;
-    receivedAt: string;
+      receivedAt: string;
   }[];
   events: { id: string; status: string; reason: string | null; occurredAt: string }[];
 };
@@ -148,32 +145,11 @@ export default function DeviceDetailPage() {
         <div className="metric-card-sub">Ruang kosong hard disk sistem utama</div>
       </div>
 
-      <div className="metric-detail-card">
-        <div className="metric-card-top">
-          <span style={{ display: "flex", alignItems: "center", gap: 6 }}><Gauge size={15} /> KUALITAS INTERNET (LATENCY)</span>
-          {device.latencyMs !== null && device.latencyMs !== undefined && (
-            <span className={`metric-pill ${device.latencyMs > 200 ? "bad" : device.latencyMs > 100 ? "warn" : "good"}`}>
-              {device.latencyMs > 200 ? "Lambat" : device.latencyMs > 100 ? "Sedang" : "Cepat & Stabil"}
-            </span>
-          )}
-        </div>
-        <div className="metric-card-val">
-          <strong>{device.latencyMs !== null && device.latencyMs !== undefined ? `${device.latencyMs} ms` : "—"}</strong>
-          <span>{device.latencyMs !== null && device.latencyMs !== undefined ? (device.latencyMs < 50 ? "Sangat Baik" : device.latencyMs < 120 ? "Stabil" : "Tinggi") : "Belum ada data"}</span>
-        </div>
-        <div className="metric-progress">
-          <div
-            className={`metric-progress-fill ${(device.latencyMs || 0) > 200 ? "red" : (device.latencyMs || 0) > 100 ? "orange" : "green"}`}
-            style={{ width: `${Math.min(100, Math.max(8, ((device.latencyMs || 0) / 250) * 100))}%` }}
-          />
-        </div>
-        <div className="metric-card-sub">Waktu respons koneksi internet (RTT ping)</div>
-      </div>
+      
     </div>
-    <NetworkPanel deviceId={id} />
     <section className="panel history-panel"><div className="panel-heading"><div><h2>Riwayat monitoring</h2><p>Heartbeat dan transisi status 7 hari terakhir</p></div><span className="history-count">{events.length + (history?.heartbeats.length || 0)} catatan</span></div>
       {events.length ? <div className="timeline">{events.map((event, index) => <div className="timeline-row" key={event.id}><div className={`timeline-marker ${event.status === "ONLINE" ? "marker-green" : event.status === "OFFLINE" ? "marker-orange" : "marker-grey"}`}>{event.status === "ONLINE" ? <Check size={12} /> : <WifiOff size={12} />}</div><div className="timeline-copy"><div><b>{event.status === "ONLINE" ? "Perangkat online" : event.status === "OFFLINE" ? "Perangkat offline" : event.status === "INACTIVE" ? "Perangkat dinonaktifkan" : "Perangkat belum online"}</b><small>{event.reason || "Perubahan status terdeteksi"}</small></div><time>{time(event.occurredAt)}</time></div>{index < events.length - 1 && <span className="timeline-line" />}</div>)}</div> : <div className="empty-history"><Clock3 size={20} /><b>Belum ada perubahan status</b><span>Event akan muncul ketika perangkat mulai mengirim heartbeat.</span></div>}
-      <div className="heartbeat-list"><div className="heartbeat-list-head"><b>Heartbeat terbaru</b><span>Terbaru lebih dulu · maksimal 100 catatan</span></div>{history?.heartbeats.slice(0, 8).map((item) => <div className="heartbeat-row" key={item.id}><span className="online-dot" /><span>Heartbeat diterima <small>{item.localIp || "IP lokal tidak tersedia"}</small>{item.ramUsagePct !== null && item.ramUsagePct !== undefined && <small style={{ color: "#456184", fontWeight: 600 }}> · RAM {item.ramUsagePct}%</small>}{item.diskFreeGB !== null && item.diskFreeGB !== undefined && <small style={{ color: "#456184", fontWeight: 600 }}> · Sisa Disk {item.diskFreeGB} GB</small>}{item.latencyMs !== null && item.latencyMs !== undefined && <small style={{ color: "#456184", fontWeight: 600 }}> · Ping {item.latencyMs}ms</small>}</span><time>{time(item.receivedAt)}</time></div>)}{history && history.heartbeats.length === 0 && <div className="heartbeat-empty">Belum ada heartbeat yang diterima.</div>}</div>
+      <div className="heartbeat-list"><div className="heartbeat-list-head"><b>Heartbeat terbaru</b><span>Terbaru lebih dulu · maksimal 100 catatan</span></div>{history?.heartbeats.slice(0, 8).map((item) => <div className="heartbeat-row" key={item.id}><span className="online-dot" /><span>Heartbeat diterima <small>{item.localIp || "IP lokal tidak tersedia"}</small>{item.ramUsagePct !== null && item.ramUsagePct !== undefined && <small style={{ color: "#456184", fontWeight: 600 }}> · RAM {item.ramUsagePct}%</small>}{item.diskFreeGB !== null && item.diskFreeGB !== undefined && <small style={{ color: "#456184", fontWeight: 600 }}> · Sisa Disk {item.diskFreeGB} GB</small>}</span><time>{time(item.receivedAt)}</time></div>)}{history && history.heartbeats.length === 0 && <div className="heartbeat-empty">Belum ada heartbeat yang diterima.</div>}</div>
     </section>
     {token && <div className="modal-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) setToken(""); }}><section className="modal-card" role="dialog" aria-modal="true"><button className="modal-close" onClick={() => setToken("")} aria-label="Tutup">×</button><div className="modal-icon"><KeyRound size={20} /></div><div className="form-kicker">TOKEN BARU BERHASIL DIBUAT</div><h2>Simpan token agent</h2><p className="modal-description">Token sebelumnya sudah dicabut. Perbarui agent pada PC dengan token baru ini.</p><div className="token-box"><code>{token}</code><button className="copy-token" onClick={async () => { await navigator.clipboard.writeText(token); setCopied(true); }} aria-label="Salin token">{copied ? <Check size={17} /> : <Copy size={17} />}</button></div><button className="primary-button modal-submit" onClick={() => setToken("")}>Selesai</button></section></div>}
     {confirmDelete && (
