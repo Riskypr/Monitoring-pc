@@ -53,10 +53,8 @@ export async function POST(request: Request) {
       deviceId: device.id, commandId: d.commandId ?? null, requestId: d.requestId ?? null,
       downloadMbps: d.downloadMbps ?? null, uploadMbps: d.uploadMbps ?? null, latencyMs: d.latencyMs ?? null,
       jitterMs: d.jitterMs ?? null, packetLossPercent: d.packetLossPercent ?? null,
-      serverId: d.serverId ?? null, serverName: d.serverName ?? null, serverRegion: d.serverRegion ?? null,
-      protocol: d.protocol ?? "TCP", durationSeconds: d.durationSeconds ?? null, parallelStreams: d.parallelStreams ?? null,
-      udpTargetMbps: d.udpTargetMbps ?? null, clientVersion: d.clientVersion ?? null, serverVersion: d.serverVersion ?? null,
-      rawSummary: d.rawSummary ?? null, publicIp: d.publicIp ?? null, ooklaVersion: d.ooklaVersion ?? null, status: d.status,
+      serverId: d.serverId ?? null, serverName: d.serverName ?? null, publicIp: d.publicIp ?? null,
+      ooklaVersion: d.ooklaVersion ?? null, status: d.status,
       errorMessage: d.errorMessage ?? null, startedAt: d.startedAt ? new Date(d.startedAt) : null,
       completedAt: d.completedAt ? new Date(d.completedAt) : new Date(),
     } });
